@@ -1,0 +1,1411 @@
+name: Construir NOVA Files APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Gerar aplicativo Android
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Criar projeto Android
+        shell: bash
+        run: |
+          mkdir -p app/src/main/java/com/novafiles/manager
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/xml
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/mipmap-anydpi-v26
+
+          cat > settings.gradle.kts <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "NovaFiles"
+          include(":app")
+          EOF
+
+          cat > build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application") version "8.7.3" apply false
+          }
+          EOF
+
+          cat > gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          EOF
+
+          cat > app/build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application")
+          }
+
+          android {
+              namespace = "com.novafiles.manager"
+              compileSdk = 35
+
+              defaultConfig {
+                  applicationId = "com.novafiles.manager"
+                  minSdk = 26
+                  targetSdk = 35
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+          }
+
+          dependencies {
+              implementation("androidx.appcompat:appcompat:1.7.0")
+              implementation("androidx.core:core:1.15.0")
+              implementation("androidx.recyclerview:recyclerview:1.3.2")
+              implementation("com.google.android.material:material:1.12.0")
+          }
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+
+              <application
+                  android:allowBackup="false"
+                  android:label="NOVA Files"
+                  android:icon="@drawable/ic_nova"
+                  android:theme="@style/AppTheme"
+                  android:supportsRtl="true"
+                  android:usesCleartextTraffic="false">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:configChanges="orientation|screenSize|keyboardHidden"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+
+                  <provider
+                      android:name="androidx.core.content.FileProvider"
+                      android:authorities="${applicationId}.provider"
+                      android:exported="false"
+                      android:grantUriPermissions="true">
+                      <meta-data
+                          android:name="android.support.FILE_PROVIDER_PATHS"
+                          android:resource="@xml/file_paths" />
+                  </provider>
+              </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/res/values/styles.xml <<'EOF'
+          <resources>
+              <style name="AppTheme" parent="Theme.Material3.Light.NoActionBar">
+                  <item name="colorPrimary">#6750D8</item>
+                  <item name="colorOnPrimary">#FFFFFF</item>
+                  <item name="colorSecondary">#8B78E8</item>
+                  <item name="android:fontFamily">sans</item>
+                  <item name="android:windowLightStatusBar">false</item>
+                  <item name="android:statusBarColor">#17152E</item>
+                  <item name="android:navigationBarColor">#F7F7FC</item>
+                  <item name="android:windowLightNavigationBar">true</item>
+                  <item name="android:windowBackground">#F7F7FC</item>
+                  <item name="android:colorAccent">#6750D8</item>
+              </style>
+          </resources>
+          EOF
+
+          cat > app/src/main/res/xml/file_paths.xml <<'EOF'
+          <paths xmlns:android="http://schemas.android.com/apk/res/android">
+              <external-path name="shared_storage" path="." />
+              <files-path name="private_files" path="." />
+              <cache-path name="cache" path="." />
+          </paths>
+          EOF
+
+          cat > app/src/main/res/drawable/ic_nova.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp" android:height="108dp"
+              android:viewportWidth="108" android:viewportHeight="108">
+              <path android:fillColor="#6750D8" android:pathData="M0,0h108v108h-108z" />
+              <path android:fillColor="#FFFFFF"
+                  android:pathData="M20,31c0,-4.4 3.6,-8 8,-8h19l8,8h25c4.4,0 8,3.6 8,8v38c0,4.4 -3.6,8 -8,8h-52c-4.4,0 -8,-3.6 -8,-8z" />
+              <path android:fillColor="#CFC6FF"
+                  android:pathData="M20,43h68v34c0,4.4 -3.6,8 -8,8h-52c-4.4,0 -8,-3.6 -8,-8z" />
+          </vector>
+          EOF
+
+          cat > app/src/main/java/com/novafiles/manager/MainActivity.java <<'EOF'
+          package com.novafiles.manager;
+
+          import android.Manifest;
+          import android.app.AlertDialog;
+          import android.content.ClipData;
+          import android.content.ClipboardManager;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.SharedPreferences;
+          import android.content.pm.PackageManager;
+          import android.graphics.Color;
+          import android.graphics.Typeface;
+          import android.graphics.drawable.GradientDrawable;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.os.Environment;
+          import android.os.StatFs;
+          import android.provider.Settings;
+          import android.text.Editable;
+          import android.text.TextWatcher;
+          import android.view.Gravity;
+          import android.view.View;
+          import android.view.ViewGroup;
+          import android.view.Window;
+          import android.view.WindowManager;
+          import android.widget.EditText;
+          import android.widget.FrameLayout;
+          import android.widget.HorizontalScrollView;
+          import android.widget.LinearLayout;
+          import android.widget.PopupMenu;
+          import android.widget.ProgressBar;
+          import android.widget.ScrollView;
+          import android.widget.TextView;
+          import android.widget.Toast;
+          import androidx.annotation.NonNull;
+          import androidx.appcompat.app.AppCompatActivity;
+          import androidx.core.content.ContextCompat;
+          import androidx.core.content.FileProvider;
+          import androidx.recyclerview.widget.GridLayoutManager;
+          import androidx.recyclerview.widget.LinearLayoutManager;
+          import androidx.recyclerview.widget.RecyclerView;
+          import com.google.android.material.button.MaterialButton;
+          import com.google.android.material.card.MaterialCardView;
+          import com.google.android.material.chip.Chip;
+          import com.google.android.material.chip.ChipGroup;
+          import com.google.android.material.floatingactionbutton.FloatingActionButton;
+          import com.google.android.material.textfield.TextInputEditText;
+          import com.google.android.material.textfield.TextInputLayout;
+          import java.io.BufferedInputStream;
+          import java.io.BufferedOutputStream;
+          import java.io.File;
+          import java.io.FileInputStream;
+          import java.io.FileOutputStream;
+          import java.io.InputStream;
+          import java.io.OutputStream;
+          import java.text.DateFormat;
+          import java.util.ArrayDeque;
+          import java.util.ArrayList;
+          import java.util.Arrays;
+          import java.util.Collections;
+          import java.util.Comparator;
+          import java.util.Date;
+          import java.util.HashSet;
+          import java.util.LinkedHashSet;
+          import java.util.List;
+          import java.util.Locale;
+          import java.util.Set;
+          import java.util.concurrent.ExecutorService;
+          import java.util.concurrent.Executors;
+          import java.util.zip.ZipEntry;
+          import java.util.zip.ZipInputStream;
+          import java.util.zip.ZipOutputStream;
+
+          public class MainActivity extends AppCompatActivity {
+              private static final int C_BG = Color.rgb(247, 247, 252);
+              private static final int C_INK = Color.rgb(34, 33, 55);
+              private static final int C_MUTED = Color.rgb(116, 119, 140);
+              private static final int C_PURPLE = Color.rgb(103, 80, 216);
+              private static final int C_LINE = Color.rgb(232, 232, 242);
+
+              private final ExecutorService worker = Executors.newSingleThreadExecutor();
+              private final LinkedHashSet<File> selected = new LinkedHashSet<>();
+              private final ArrayList<File> clipboardFiles = new ArrayList<>();
+              private final ArrayList<File> items = new ArrayList<>();
+              private final HashSet<String> favorites = new HashSet<>();
+              private final ArrayList<String> recents = new ArrayList<>();
+
+              private SharedPreferences prefs;
+              private File storageRoot;
+              private File currentDir;
+              private LinearLayout root;
+              private LinearLayout header;
+              private TextInputEditText searchInput;
+              private RecyclerView recycler;
+              private FileAdapter adapter;
+              private TextView pathText;
+              private TextView storageText;
+              private TextView emptyText;
+              private MaterialButton permissionButton;
+              private LinearLayout selectionBar;
+              private TextView selectionCount;
+              private ProgressBar storageProgress;
+              private String mode = "files";
+              private String category = "Tudo";
+              private String query = "";
+              private int sortMode = 0;
+              private boolean showHidden = false;
+              private boolean gridMode = false;
+              private boolean cutMode = false;
+
+              @Override
+              protected void onCreate(Bundle state) {
+                  super.onCreate(state);
+                  prefs = getSharedPreferences("nova_files", MODE_PRIVATE);
+                  loadSavedData();
+                  storageRoot = Environment.getExternalStorageDirectory();
+                  currentDir = storageRoot;
+                  getWindow().setStatusBarColor(Color.rgb(23, 21, 46));
+                  getWindow().setNavigationBarColor(C_BG);
+                  if (Build.VERSION.SDK_INT >= 26) {
+                      getWindow().getDecorView().setSystemUiVisibility(0);
+                  }
+                  buildInterface();
+                  updateStorage();
+                  checkAccessAndLoad();
+              }
+
+              private int dp(float value) {
+                  return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+              }
+
+              private GradientDrawable shape(int color, int radius) {
+                  GradientDrawable d = new GradientDrawable();
+                  d.setColor(color);
+                  d.setCornerRadius(dp(radius));
+                  return d;
+              }
+
+              private GradientDrawable gradient(int a, int b, int radius) {
+                  GradientDrawable d = new GradientDrawable(
+                      GradientDrawable.Orientation.TL_BR, new int[]{a, b});
+                  d.setCornerRadius(dp(radius));
+                  return d;
+              }
+
+              private TextView label(String value, float size, int color, boolean bold) {
+                  TextView t = new TextView(this);
+                  t.setText(value);
+                  t.setTextSize(size);
+                  t.setTextColor(color);
+                  if (bold) t.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+                  t.setGravity(Gravity.CENTER_VERTICAL);
+                  return t;
+              }
+
+              private LinearLayout vertical() {
+                  LinearLayout l = new LinearLayout(this);
+                  l.setOrientation(LinearLayout.VERTICAL);
+                  return l;
+              }
+
+              private LinearLayout horizontal() {
+                  LinearLayout l = new LinearLayout(this);
+                  l.setOrientation(LinearLayout.HORIZONTAL);
+                  l.setGravity(Gravity.CENTER_VERTICAL);
+                  return l;
+              }
+
+              private MaterialButton button(String text, boolean filled) {
+                  MaterialButton b = new MaterialButton(this);
+                  b.setText(text);
+                  b.setTextSize(12);
+                  b.setAllCaps(false);
+                  b.setCornerRadius(dp(14));
+                  b.setInsetTop(0);
+                  b.setInsetBottom(0);
+                  b.setMinHeight(dp(40));
+                  b.setPadding(dp(10), 0, dp(10), 0);
+                  b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                      filled ? C_PURPLE : Color.rgb(239, 237, 250)));
+                  b.setTextColor(filled ? Color.WHITE : C_PURPLE);
+                  return b;
+              }
+
+              private void buildInterface() {
+                  root = vertical();
+                  root.setBackgroundColor(C_BG);
+                  setContentView(root);
+
+                  header = vertical();
+                  header.setPadding(dp(20), dp(13), dp(20), dp(17));
+                  header.setBackground(gradient(Color.rgb(29, 25, 62), Color.rgb(83, 66, 157), 0));
+                  root.addView(header, new LinearLayout.LayoutParams(-1, dp(188)));
+
+                  LinearLayout brandRow = horizontal();
+                  TextView brandIcon = label("▣", 25, Color.WHITE, true);
+                  brandRow.addView(brandIcon, new LinearLayout.LayoutParams(dp(35), dp(40)));
+                  LinearLayout brandWords = vertical();
+                  brandWords.addView(label("NOVA", 14, Color.WHITE, true));
+                  brandWords.addView(label("FILE MANAGER", 9, Color.rgb(205, 199, 238), true));
+                  brandRow.addView(brandWords, new LinearLayout.LayoutParams(0, -2, 1));
+                  TextView menu = label("⋮", 29, Color.WHITE, true);
+                  menu.setGravity(Gravity.CENTER);
+                  brandRow.addView(menu, new LinearLayout.LayoutParams(dp(38), dp(42)));
+                  menu.setOnClickListener(v -> showMainMenu(v));
+                  header.addView(brandRow);
+
+                  TextView headline = label("Seus arquivos.", 27, Color.WHITE, true);
+                  LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(-1, -2);
+                  hp.topMargin = dp(10);
+                  header.addView(headline, hp);
+                  header.addView(label("Tudo organizado em um só lugar.", 12,
+                      Color.rgb(216, 211, 241), false));
+
+                  LinearLayout storageCard = horizontal();
+                  storageCard.setPadding(dp(13), dp(8), dp(13), dp(8));
+                  storageCard.setBackground(shape(0x33FFFFFF, 15));
+                  LinearLayout.LayoutParams scp = new LinearLayout.LayoutParams(-1, dp(51));
+                  scp.topMargin = dp(11);
+                  header.addView(storageCard, scp);
+                  LinearLayout storageInfo = vertical();
+                  storageText = label("Armazenamento interno", 11, Color.WHITE, true);
+                  storageInfo.addView(storageText);
+                  storageInfo.addView(label("Toque para atualizar o espaço", 9,
+                      Color.rgb(218, 213, 242), false));
+                  storageCard.addView(storageInfo, new LinearLayout.LayoutParams(0, -2, 1));
+                  storageProgress = new ProgressBar(this, null,
+                      android.R.attr.progressBarStyleHorizontal);
+                  storageProgress.setMax(100);
+                  storageProgress.setProgressTintList(
+                      android.content.res.ColorStateList.valueOf(0xFFBFB2FF));
+                  storageProgress.setProgressBackgroundTintList(
+                      android.content.res.ColorStateList.valueOf(0x55FFFFFF));
+                  storageProgress.setProgress(0);
+                  storageProgress.setMinimumHeight(dp(7));
+                  storageCard.addView(storageProgress, new LinearLayout.LayoutParams(dp(76), dp(7)));
+                  storageCard.setOnClickListener(v -> showStorageDetails());
+
+                  LinearLayout searchWrap = new LinearLayout(this);
+                  searchWrap.setPadding(dp(16), dp(10), dp(16), dp(4));
+                  root.addView(searchWrap);
+                  TextInputLayout searchBox = new TextInputLayout(this);
+                  searchBox.setHint("Pesquisar arquivos e pastas");
+                  searchBox.setStartIconDrawable(android.R.drawable.ic_menu_search);
+                  searchBox.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+                  searchBox.setBoxCornerRadii(dp(16), dp(16), dp(16), dp(16));
+                  searchBox.setBoxStrokeColor(C_LINE);
+                  searchBox.setEndIconMode(TextInputLayout.END_ICON_CLEAR_TEXT);
+                  searchWrap.addView(searchBox, new LinearLayout.LayoutParams(-1, dp(57)));
+                  searchInput = new TextInputEditText(this);
+                  searchInput.setSingleLine(true);
+                  searchInput.setTextSize(14);
+                  searchInput.setPadding(0, dp(8), 0, dp(8));
+                  searchBox.addView(searchInput, new LinearLayout.LayoutParams(-1, -1));
+                  searchInput.addTextChangedListener(new TextWatcher() {
+                      @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
+                      @Override public void onTextChanged(CharSequence s, int st, int before, int count) {
+                          query = s.toString().trim();
+                          reload();
+                      }
+                      @Override public void afterTextChanged(Editable e) {}
+                  });
+
+                  HorizontalScrollView chipScroll = new HorizontalScrollView(this);
+                  chipScroll.setHorizontalScrollBarEnabled(false);
+                  chipScroll.setPadding(dp(12), dp(4), dp(12), dp(5));
+                  root.addView(chipScroll, new LinearLayout.LayoutParams(-1, dp(48)));
+                  ChipGroup chips = new ChipGroup(this);
+                  chips.setSingleSelection(true);
+                  chips.setSelectionRequired(true);
+                  chips.setChipSpacingHorizontal(dp(7));
+                  chipScroll.addView(chips);
+                  String[] cats = {"Tudo", "Imagens", "Vídeos", "Áudio", "Documentos", "APK", "ZIP"};
+                  for (String c : cats) {
+                      Chip chip = new Chip(this);
+                      chip.setText(c);
+                      chip.setCheckable(true);
+                      chip.setTextSize(11);
+                      chip.setChipCornerRadius(dp(18));
+                      chip.setChipBackgroundColorResource(android.R.color.white);
+                      chip.setCheckedIconVisible(false);
+                      chip.setChipStrokeWidth(dp(1));
+                      chip.setChipStrokeColor(android.content.res.ColorStateList.valueOf(C_LINE));
+                      chips.addView(chip);
+                      if (c.equals("Tudo")) chip.setChecked(true);
+                      chip.setOnCheckedChangeListener((v, checked) -> {
+                          if (checked) {
+                              category = c;
+                              reload();
+                          }
+                      });
+                  }
+
+                  LinearLayout pathRow = horizontal();
+                  pathRow.setPadding(dp(18), dp(4), dp(18), dp(5));
+                  root.addView(pathRow, new LinearLayout.LayoutParams(-1, dp(39)));
+                  TextView up = label("‹", 28, C_PURPLE, true);
+                  up.setGravity(Gravity.CENTER);
+                  pathRow.addView(up, new LinearLayout.LayoutParams(dp(34), -1));
+                  up.setOnClickListener(v -> goUp());
+                  pathText = label("Armazenamento interno", 11, C_MUTED, true);
+                  pathRow.addView(pathText, new LinearLayout.LayoutParams(0, -1, 1));
+                  TextView refresh = label("↻", 22, C_PURPLE, true);
+                  refresh.setGravity(Gravity.CENTER);
+                  pathRow.addView(refresh, new LinearLayout.LayoutParams(dp(34), -1));
+                  refresh.setOnClickListener(v -> {
+                      updateStorage();
+                      reload();
+                  });
+
+                  FrameLayout body = new FrameLayout(this);
+                  root.addView(body, new LinearLayout.LayoutParams(-1, 0, 1));
+                  recycler = new RecyclerView(this);
+                  recycler.setClipToPadding(false);
+                  recycler.setPadding(dp(12), dp(5), dp(12), dp(90));
+                  recycler.setItemAnimator(new androidx.recyclerview.widget.DefaultItemAnimator());
+                  recycler.setLayoutManager(new LinearLayoutManager(this));
+                  body.addView(recycler, new FrameLayout.LayoutParams(-1, -1));
+
+                  LinearLayout emptyBox = vertical();
+                  emptyBox.setGravity(Gravity.CENTER);
+                  emptyBox.setPadding(dp(28), dp(20), dp(28), dp(20));
+                  emptyText = label("Nada por aqui ainda.", 15, C_MUTED, true);
+                  emptyText.setGravity(Gravity.CENTER);
+                  emptyBox.addView(emptyText);
+                  permissionButton = button("Liberar acesso aos arquivos", true);
+                  LinearLayout.LayoutParams pbp = new LinearLayout.LayoutParams(-2, dp(46));
+                  pbp.topMargin = dp(18);
+                  emptyBox.addView(permissionButton, pbp);
+                  permissionButton.setOnClickListener(v -> requestFileAccess());
+                  body.addView(emptyBox, new FrameLayout.LayoutParams(-1, -1));
+                  emptyBox.setTag("empty");
+
+                  FloatingActionButton fab = new FloatingActionButton(this);
+                  fab.setImageResource(android.R.drawable.ic_input_add);
+                  fab.setBackgroundTintList(android.content.res.ColorStateList.valueOf(C_PURPLE));
+                  fab.setColorFilter(Color.WHITE);
+                  FrameLayout.LayoutParams fp = new FrameLayout.LayoutParams(dp(58), dp(58),
+                      Gravity.BOTTOM | Gravity.END);
+                  fp.setMargins(0, 0, dp(22), dp(17));
+                  body.addView(fab, fp);
+                  fab.setOnClickListener(v -> showCreateMenu(v));
+
+                  selectionBar = horizontal();
+                  selectionBar.setPadding(dp(10), dp(5), dp(10), dp(5));
+                  selectionBar.setBackground(shape(Color.WHITE, 16));
+                  selectionBar.setElevation(dp(8));
+                  selectionCount = label("0 selecionados", 11, C_INK, true);
+                  selectionBar.addView(selectionCount, new LinearLayout.LayoutParams(0, dp(46), 1));
+                  addSelectionAction("Copiar", () -> prepareClipboard(false));
+                  addSelectionAction("Mover", () -> prepareClipboard(true));
+                  addSelectionAction("Apagar", () -> deleteSelected());
+                  addSelectionAction("Mais", () -> showMoreSelected());
+                  root.addView(selectionBar, new LinearLayout.LayoutParams(-1, dp(56)));
+                  selectionBar.setVisibility(View.GONE);
+
+                  LinearLayout bottom = horizontal();
+                  bottom.setPadding(dp(9), dp(4), dp(9), dp(5));
+                  bottom.setBackgroundColor(Color.WHITE);
+                  bottom.setElevation(dp(9));
+                  root.addView(bottom, new LinearLayout.LayoutParams(-1, dp(64)));
+                  addNavigation(bottom, "▦", "Arquivos", "files");
+                  addNavigation(bottom, "♡", "Favoritos", "favorites");
+                  addNavigation(bottom, "◷", "Recentes", "recents");
+                  animateIn(header, 0);
+              }
+
+              private void addSelectionAction(String text, Runnable action) {
+                  MaterialButton b = button(text, false);
+                  b.setMinWidth(0);
+                  b.setPadding(dp(7), 0, dp(7), 0);
+                  selectionBar.addView(b, new LinearLayout.LayoutParams(-2, dp(40)));
+                  b.setOnClickListener(v -> action.run());
+              }
+
+              private void addNavigation(LinearLayout bar, String icon, String title, String target) {
+                  LinearLayout item = vertical();
+                  item.setGravity(Gravity.CENTER);
+                  TextView i = label(icon, 19, target.equals(mode) ? C_PURPLE : C_MUTED, true);
+                  i.setGravity(Gravity.CENTER);
+                  TextView t = label(title, 10, target.equals(mode) ? C_PURPLE : C_MUTED,
+                      target.equals(mode));
+                  t.setGravity(Gravity.CENTER);
+                  item.addView(i);
+                  item.addView(t);
+                  bar.addView(item, new LinearLayout.LayoutParams(0, -1, 1));
+                  item.setOnClickListener(v -> {
+                      mode = target;
+                      selected.clear();
+                      updateSelectionBar();
+                      updateNavigationColors(bar);
+                      reload();
+                      animateIn(recycler, 0);
+                  });
+              }
+
+              private void updateNavigationColors(LinearLayout bar) {
+                  for (int i = 0; i < bar.getChildCount(); i++) {
+                      LinearLayout item = (LinearLayout) bar.getChildAt(i);
+                      String target = i == 0 ? "files" : (i == 1 ? "favorites" : "recents");
+                      int color = target.equals(mode) ? C_PURPLE : C_MUTED;
+                      ((TextView) item.getChildAt(0)).setTextColor(color);
+                      ((TextView) item.getChildAt(1)).setTextColor(color);
+                  }
+              }
+
+              private void animateIn(View view, long delay) {
+                  view.setAlpha(0f);
+                  view.setTranslationY(dp(12));
+                  view.animate().alpha(1f).translationY(0f).setStartDelay(delay)
+                      .setDuration(300).setInterpolator(new android.view.animation.DecelerateInterpolator())
+                      .start();
+              }
+
+              private void loadSavedData() {
+                  favorites.addAll(prefs.getStringSet("favorites", new HashSet<>()));
+                  String saved = prefs.getString("recents", "");
+                  if (!saved.isEmpty()) recents.addAll(Arrays.asList(saved.split("\\n")));
+              }
+
+              private void saveFavorites() {
+                  prefs.edit().putStringSet("favorites", new HashSet<>(favorites)).apply();
+              }
+
+              private void rememberRecent(File file) {
+                  recents.remove(file.getAbsolutePath());
+                  recents.add(0, file.getAbsolutePath());
+                  while (recents.size() > 80) recents.remove(recents.size() - 1);
+                  prefs.edit().putString("recents", android.text.TextUtils.join("\\n", recents)).apply();
+              }
+
+              private boolean hasFileAccess() {
+                  if (Build.VERSION.SDK_INT >= 30) return Environment.isExternalStorageManager();
+                  return ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                      == PackageManager.PERMISSION_GRANTED;
+              }
+
+              private void checkAccessAndLoad() {
+                  if (!hasFileAccess()) {
+                      showPermissionState();
+                  } else {
+                      reload();
+                  }
+              }
+
+              private void showPermissionState() {
+                  recycler.setVisibility(View.GONE);
+                  View empty = (View) recycler.getParent();
+                  if (empty instanceof FrameLayout) {
+                      FrameLayout frame = (FrameLayout) empty;
+                      View box = frame.getChildAt(1);
+                      if (box != null) box.setVisibility(View.VISIBLE);
+                  }
+                  emptyText.setText("Para navegar, organizar e gerenciar os arquivos do aparelho, o NOVA Files precisa da permissão de acesso aos arquivos.");
+                  permissionButton.setVisibility(View.VISIBLE);
+              }
+
+              private void requestFileAccess() {
+                  try {
+                      if (Build.VERSION.SDK_INT >= 30) {
+                          Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                          intent.setData(Uri.parse("package:" + getPackageName()));
+                          startActivity(intent);
+                      } else {
+                          requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,
+                              Manifest.permission.WRITE_EXTERNAL_STORAGE}, 771);
+                      }
+                  } catch (Exception e) {
+                      try {
+                          startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
+                      } catch (Exception ignored) {
+                          toast("Abra as configurações do app e permita o acesso aos arquivos.");
+                      }
+                  }
+              }
+
+              @Override
+              protected void onResume() {
+                  super.onResume();
+                  if (recycler != null && hasFileAccess()) {
+                      recycler.setVisibility(View.VISIBLE);
+                      View parent = (View) recycler.getParent();
+                      if (parent instanceof FrameLayout && ((FrameLayout) parent).getChildCount() > 1) {
+                          ((FrameLayout) parent).getChildAt(1).setVisibility(View.GONE);
+                      }
+                      reload();
+                      updateStorage();
+                  }
+              }
+
+              @Override
+              public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                                     @NonNull int[] results) {
+                  super.onRequestPermissionsResult(requestCode, permissions, results);
+                  if (requestCode == 771) checkAccessAndLoad();
+              }
+
+              private void updateStorage() {
+                  try {
+                      StatFs stat = new StatFs(Environment.getExternalStorageDirectory().getPath());
+                      long total = stat.getTotalBytes();
+                      long free = stat.getAvailableBytes();
+                      long used = Math.max(0, total - free);
+                      int percent = total == 0 ? 0 : (int) (used * 100L / total);
+                      storageText.setText("Armazenamento  •  " + formatSize(used) + " de " + formatSize(total));
+                      storageProgress.setProgress(percent);
+                  } catch (Exception e) {
+                      storageText.setText("Armazenamento interno");
+                  }
+              }
+
+              private void showStorageDetails() {
+                  try {
+                      StatFs stat = new StatFs(storageRoot.getPath());
+                      long total = stat.getTotalBytes();
+                      long free = stat.getAvailableBytes();
+                      new AlertDialog.Builder(this).setTitle("Armazenamento interno")
+                          .setMessage("Usado: " + formatSize(total - free) + "\\nLivre: " + formatSize(free)
+                              + "\\nTotal: " + formatSize(total))
+                          .setPositiveButton("OK", null).show();
+                  } catch (Exception e) { toast("Não foi possível ler o armazenamento."); }
+              }
+
+              private void showMainMenu(View anchor) {
+                  PopupMenu menu = new PopupMenu(this, anchor);
+                  menu.getMenu().add("Ordenar por nome").setOnMenuItemClickListener(i -> { sortMode = 0; reload(); return true; });
+                  menu.getMenu().add("Ordenar por data").setOnMenuItemClickListener(i -> { sortMode = 1; reload(); return true; });
+                  menu.getMenu().add("Ordenar por tamanho").setOnMenuItemClickListener(i -> { sortMode = 2; reload(); return true; });
+                  menu.getMenu().add(gridMode ? "Modo lista" : "Modo grade").setOnMenuItemClickListener(i -> {
+                      gridMode = !gridMode; setLayoutMode(); return true;
+                  });
+                  menu.getMenu().add(showHidden ? "Ocultar arquivos ocultos" : "Mostrar arquivos ocultos")
+                      .setOnMenuItemClickListener(i -> { showHidden = !showHidden; reload(); return true; });
+                  menu.getMenu().add("Selecionar tudo").setOnMenuItemClickListener(i -> {
+                      selected.clear(); selected.addAll(items); updateSelectionBar(); adapter.notifyDataSetChanged(); return true;
+                  });
+                  menu.getMenu().add("Colar aqui").setEnabled(!clipboardFiles.isEmpty())
+                      .setOnMenuItemClickListener(i -> { pasteClipboard(); return true; });
+                  menu.getMenu().add("Permissão de arquivos").setOnMenuItemClickListener(i -> {
+                      requestFileAccess(); return true;
+                  });
+                  menu.getMenu().add("Sobre o NOVA Files").setOnMenuItemClickListener(i -> {
+                      new AlertDialog.Builder(this).setTitle("NOVA Files")
+                          .setMessage("Gerenciador de arquivos com navegação, pesquisa, favoritos, recentes, organização, compartilhamento e ZIP.\\n\\nO Android protege algumas áreas do sistema, como Android/data e partes de Android/obb.")
+                          .setPositiveButton("Fechar", null).show(); return true;
+                  });
+                  menu.show();
+              }
+
+              private void setLayoutMode() {
+                  if (gridMode) recycler.setLayoutManager(new GridLayoutManager(this, 2));
+                  else recycler.setLayoutManager(new LinearLayoutManager(this));
+                  adapter = new FileAdapter(items);
+                  recycler.setAdapter(adapter);
+              }
+
+              private void updatePath() {
+                  if (currentDir == null || currentDir.equals(storageRoot)) {
+                      pathText.setText("Armazenamento interno");
+                  } else {
+                      String path = currentDir.getAbsolutePath().replace(storageRoot.getAbsolutePath(), "");
+                      pathText.setText("Interno  ›  " + path.replace(File.separator, "  ›  "));
+                  }
+              }
+
+              private void goUp() {
+                  if (currentDir != null && !currentDir.equals(storageRoot) && currentDir.getParentFile() != null) {
+                      currentDir = currentDir.getParentFile();
+                      mode = "files";
+                      selected.clear();
+                      updateSelectionBar();
+                      reload();
+                  }
+              }
+
+              @Override
+              public void onBackPressed() {
+                  if (!selected.isEmpty()) {
+                      selected.clear();
+                      updateSelectionBar();
+                      if (adapter != null) adapter.notifyDataSetChanged();
+                  } else if (currentDir != null && !currentDir.equals(storageRoot)) {
+                      goUp();
+                  } else if (!"files".equals(mode)) {
+                      mode = "files";
+                      reload();
+                  } else {
+                      super.onBackPressed();
+                  }
+              }
+
+              private void reload() {
+                  if (recycler == null || !hasFileAccess()) {
+                      if (recycler != null) showPermissionState();
+                      return;
+                  }
+                  final File base = currentDir;
+                  final String q = query.toLowerCase(Locale.ROOT);
+                  final String cat = category;
+                  final String activeMode = mode;
+                  final int ordering = sortMode;
+                  final boolean hidden = showHidden;
+                  final HashSet<String> favSnapshot = new HashSet<>(favorites);
+                  final ArrayList<String> recentSnapshot = new ArrayList<>(recents);
+
+                  worker.execute(() -> {
+                      ArrayList<File> result = new ArrayList<>();
+                      if ("favorites".equals(activeMode)) {
+                          for (String path : favSnapshot) {
+                              File f = new File(path);
+                              if (f.exists() && (q.isEmpty() || f.getName().toLowerCase(Locale.ROOT).contains(q))
+                                  && matchesCategory(f, cat)) result.add(f);
+                          }
+                      } else if ("recents".equals(activeMode)) {
+                          for (String path : recentSnapshot) {
+                              File f = new File(path);
+                              if (f.exists() && (q.isEmpty() || f.getName().toLowerCase(Locale.ROOT).contains(q))
+                                  && matchesCategory(f, cat)) result.add(f);
+                          }
+                      } else if (base != null && base.isDirectory()) {
+                          if (q.isEmpty()) {
+                              File[] children = base.listFiles();
+                              if (children != null) {
+                                  for (File f : children) {
+                                      if ((!hidden && f.isHidden()) || !matchesCategory(f, cat)) continue;
+                                      result.add(f);
+                                  }
+                              }
+                          } else {
+                              searchTree(base, q, cat, hidden, result);
+                          }
+                      }
+                      Comparator<File> comparator;
+                      if (ordering == 1) {
+                          comparator = (a, b) -> Long.compare(b.lastModified(), a.lastModified());
+                      } else if (ordering == 2) {
+                          comparator = (a, b) -> Long.compare(b.isDirectory() ? -1 : b.length(),
+                              a.isDirectory() ? -1 : a.length());
+                      } else {
+                          comparator = (a, b) -> a.getName().compareToIgnoreCase(b.getName());
+                      }
+                      result.sort((a, b) -> {
+                          if (a.isDirectory() != b.isDirectory()) return a.isDirectory() ? -1 : 1;
+                          return comparator.compare(a, b);
+                      });
+                      runOnUiThread(() -> {
+                          items.clear();
+                          items.addAll(result);
+                          updatePath();
+                          if (adapter == null) {
+                              setLayoutMode();
+                          } else {
+                              adapter.notifyDataSetChanged();
+                          }
+                          View empty = ((FrameLayout) recycler.getParent()).getChildAt(1);
+                          empty.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
+                          recycler.setVisibility(items.isEmpty() ? View.GONE : View.VISIBLE);
+                          if (items.isEmpty()) {
+                              emptyText.setText(q.isEmpty() ? "Esta pasta está vazia." : "Nenhum resultado encontrado.");
+                              permissionButton.setVisibility(View.GONE);
+                          }
+                      });
+                  });
+              }
+
+              private void searchTree(File start, String q, String cat, boolean hidden,
+                                      ArrayList<File> out) {
+                  ArrayDeque<File> stack = new ArrayDeque<>();
+                  stack.push(start);
+                  int visited = 0;
+                  while (!stack.isEmpty() && visited < 6000 && out.size() < 300) {
+                      File dir = stack.pop();
+                      File[] children = dir.listFiles();
+                      if (children == null) continue;
+                      for (File f : children) {
+                          visited++;
+                          if (!hidden && f.isHidden()) continue;
+                          String name = f.getName().toLowerCase(Locale.ROOT);
+                          if (name.contains(q) && matchesCategory(f, cat)) out.add(f);
+                          if (f.isDirectory() && !f.getName().equals("Android") && visited < 6000) {
+                              stack.push(f);
+                          }
+                          if (visited >= 6000 || out.size() >= 300) break;
+                      }
+                  }
+              }
+
+              private boolean matchesCategory(File f, String c) {
+                  if ("Tudo".equals(c)) return true;
+                  String n = f.getName().toLowerCase(Locale.ROOT);
+                  if (f.isDirectory()) return false;
+                  switch (c) {
+                      case "Imagens": return ends(n, ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic", ".svg");
+                      case "Vídeos": return ends(n, ".mp4", ".mkv", ".mov", ".webm", ".3gp", ".avi", ".m4v");
+                      case "Áudio": return ends(n, ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".opus");
+                      case "Documentos": return ends(n, ".pdf", ".doc", ".docx", ".txt", ".rtf", ".xls", ".xlsx", ".ppt", ".pptx", ".csv");
+                      case "APK": return ends(n, ".apk", ".xapk", ".apks");
+                      case "ZIP": return ends(n, ".zip", ".jar", ".cbz");
+                      default: return true;
+                  }
+              }
+
+              private boolean ends(String value, String... extensions) {
+                  for (String e : extensions) if (value.endsWith(e)) return true;
+                  return false;
+              }
+
+              private String formatSize(long bytes) {
+                  if (bytes < 1024) return bytes + " B";
+                  if (bytes < 1024 * 1024) return String.format(Locale.getDefault(), "%.1f KB", bytes / 1024.0);
+                  if (bytes < 1024L * 1024L * 1024L) return String.format(Locale.getDefault(), "%.1f MB", bytes / (1024.0 * 1024));
+                  return String.format(Locale.getDefault(), "%.2f GB", bytes / (1024.0 * 1024 * 1024));
+              }
+
+              private String fileIcon(File file) {
+                  if (file.isDirectory()) return "📁";
+                  String n = file.getName().toLowerCase(Locale.ROOT);
+                  if (ends(n, ".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic")) return "🖼️";
+                  if (ends(n, ".mp4", ".mkv", ".mov", ".webm", ".avi", ".3gp")) return "🎬";
+                  if (ends(n, ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac")) return "🎵";
+                  if (ends(n, ".zip", ".rar", ".7z", ".tar", ".gz")) return "📦";
+                  if (n.endsWith(".apk")) return "📲";
+                  if (n.endsWith(".pdf")) return "📕";
+                  if (ends(n, ".doc", ".docx", ".txt", ".rtf")) return "📝";
+                  if (ends(n, ".xls", ".xlsx", ".csv")) return "📊";
+                  return "📄";
+              }
+
+              private String fileMeta(File f) {
+                  if (f.isDirectory()) {
+                      File[] c = f.listFiles();
+                      return (c == null ? 0 : c.length) + " itens  •  Pasta";
+                  }
+                  return formatSize(f.length()) + "  •  " +
+                      DateFormat.getDateInstance(DateFormat.MEDIUM).format(new Date(f.lastModified()));
+              }
+
+              private class FileAdapter extends RecyclerView.Adapter<FileHolder> {
+                  private final List<File> data;
+                  private boolean grid;
+                  FileAdapter(List<File> list) { data = list; grid = gridMode; }
+
+                  @NonNull
+                  @Override
+                  public FileHolder onCreateViewHolder(@NonNull ViewGroup parent, int type) {
+                      MaterialCardView card = new MaterialCardView(MainActivity.this);
+                      card.setRadius(dp(17));
+                      card.setCardElevation(dp(1));
+                      card.setStrokeWidth(dp(1));
+                      card.setStrokeColor(C_LINE);
+                      card.setCardBackgroundColor(Color.WHITE);
+                      RecyclerView.LayoutParams cp = new RecyclerView.LayoutParams(-1, grid ? dp(158) : dp(79));
+                      cp.setMargins(dp(3), dp(4), dp(3), dp(4));
+                      card.setLayoutParams(cp);
+
+                      LinearLayout row = new LinearLayout(MainActivity.this);
+                      row.setGravity(grid ? Gravity.CENTER : Gravity.CENTER_VERTICAL);
+                      row.setOrientation(grid ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
+                      row.setPadding(dp(12), dp(8), dp(10), dp(8));
+                      card.addView(row, new MaterialCardView.LayoutParams(-1, -1));
+
+                      TextView icon = label("📁", grid ? 34 : 28, C_INK, false);
+                      icon.setGravity(Gravity.CENTER);
+                      if (grid) {
+                          LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(-1, dp(64));
+                          row.addView(icon, ip);
+                      } else {
+                          row.addView(icon, new LinearLayout.LayoutParams(dp(48), -1));
+                      }
+
+                      LinearLayout info = vertical();
+                      info.setGravity(grid ? Gravity.CENTER : Gravity.CENTER_VERTICAL);
+                      LinearLayout.LayoutParams infop = grid ?
+                          new LinearLayout.LayoutParams(-1, 0, 1) :
+                          new LinearLayout.LayoutParams(0, -2, 1);
+                      if (!grid) infop.leftMargin = dp(10);
+                      row.addView(info, infop);
+                      TextView name = label("", 13, C_INK, true);
+                      name.setMaxLines(2);
+                      name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                      if (grid) name.setGravity(Gravity.CENTER);
+                      info.addView(name);
+                      TextView meta = label("", 10, C_MUTED, false);
+                      meta.setMaxLines(1);
+                      if (grid) meta.setGravity(Gravity.CENTER);
+                      info.addView(meta);
+
+                      TextView more = label("⋮", 22, C_MUTED, true);
+                      more.setGravity(Gravity.CENTER);
+                      if (!grid) row.addView(more, new LinearLayout.LayoutParams(dp(28), -1));
+                      return new FileHolder(card, icon, name, meta, more);
+                  }
+
+                  @Override
+                  public void onBindViewHolder(@NonNull FileHolder h, int position) {
+                      File f = data.get(position);
+                      h.icon.setText(fileIcon(f));
+                      h.name.setText(f.getName().isEmpty() ? "Armazenamento" : f.getName());
+                      h.meta.setText(fileMeta(f));
+                      boolean chosen = selected.contains(f);
+                      h.card.setStrokeColor(chosen ? C_PURPLE : C_LINE);
+                      h.card.setCardBackgroundColor(chosen ? 0xFFF0EDFF : Color.WHITE);
+                      h.card.setOnClickListener(v -> {
+                          if (!selected.isEmpty()) {
+                              if (chosen) selected.remove(f); else selected.add(f);
+                              updateSelectionBar();
+                              notifyDataSetChanged();
+                          } else if (f.isDirectory()) {
+                              currentDir = f;
+                              mode = "files";
+                              query = "";
+                              searchInput.setText("");
+                              reload();
+                              animateIn(recycler, 0);
+                          } else {
+                              openFile(f);
+                          }
+                      });
+                      h.card.setOnLongClickListener(v -> {
+                          if (chosen) selected.remove(f); else selected.add(f);
+                          updateSelectionBar();
+                          notifyDataSetChanged();
+                          return true;
+                      });
+                      h.more.setOnClickListener(v -> showFileMenu(f, h.more));
+                      if (grid) {
+                          h.more.setVisibility(View.GONE);
+                      } else {
+                          h.more.setVisibility(View.VISIBLE);
+                      }
+                      h.card.setOnTouchListener((v, event) -> {
+                          if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                              v.animate().scaleX(0.985f).scaleY(0.985f).setDuration(80).start();
+                          } else if (event.getAction() == android.view.MotionEvent.ACTION_UP ||
+                              event.getAction() == android.view.MotionEvent.ACTION_CANCEL) {
+                              v.animate().scaleX(1f).scaleY(1f).setDuration(130).start();
+                          }
+                          return false;
+                      });
+                      h.card.setAlpha(0f);
+                      h.card.animate().alpha(1f).setDuration(180).setStartDelay(Math.min(position * 18, 180)).start();
+                  }
+
+                  @Override public int getItemCount() { return data.size(); }
+              }
+
+              private static class FileHolder extends RecyclerView.ViewHolder {
+                  MaterialCardView card;
+                  TextView icon, name, meta, more;
+                  FileHolder(MaterialCardView c, TextView i, TextView n, TextView m, TextView x) {
+                      super(c); card = c; icon = i; name = n; meta = m; more = x;
+                  }
+              }
+
+              private void updateSelectionBar() {
+                  if (selectionBar == null) return;
+                  selectionBar.setVisibility(selected.isEmpty() ? View.GONE : View.VISIBLE);
+                  selectionCount.setText(selected.size() + " selecionado(s)");
+              }
+
+              private void showFileMenu(File file, View anchor) {
+                  PopupMenu menu = new PopupMenu(this, anchor);
+                  menu.getMenu().add("Abrir").setOnMenuItemClickListener(i -> { openFile(file); return true; });
+                  menu.getMenu().add(favorites.contains(file.getAbsolutePath()) ? "Remover dos favoritos" : "Adicionar aos favoritos")
+                      .setOnMenuItemClickListener(i -> { toggleFavorite(file); return true; });
+                  menu.getMenu().add("Renomear").setOnMenuItemClickListener(i -> { renameFile(file); return true; });
+                  menu.getMenu().add("Detalhes").setOnMenuItemClickListener(i -> { showDetails(file); return true; });
+                  menu.getMenu().add("Compartilhar").setOnMenuItemClickListener(i -> { shareFiles(Collections.singletonList(file)); return true; });
+                  if (file.isFile() && file.getName().toLowerCase(Locale.ROOT).endsWith(".zip")) {
+                      menu.getMenu().add("Extrair ZIP aqui").setOnMenuItemClickListener(i -> { extractZip(file); return true; });
+                  } else {
+                      menu.getMenu().add("Compactar em ZIP").setOnMenuItemClickListener(i -> {
+                          selected.clear(); selected.add(file); compressSelection(); return true;
+                      });
+                  }
+                  menu.getMenu().add("Copiar").setOnMenuItemClickListener(i -> {
+                      clipboardFiles.clear(); clipboardFiles.add(file); cutMode = false;
+                      toast("Pronto para colar."); return true;
+                  });
+                  menu.getMenu().add("Mover").setOnMenuItemClickListener(i -> {
+                      clipboardFiles.clear(); clipboardFiles.add(file); cutMode = true;
+                      toast("Escolha a pasta de destino e toque em Colar no menu ⋮."); return true;
+                  });
+                  menu.getMenu().add("Apagar").setOnMenuItemClickListener(i -> { confirmDelete(Collections.singletonList(file)); return true; });
+                  menu.show();
+              }
+
+              private void toggleFavorite(File file) {
+                  String path = file.getAbsolutePath();
+                  if (favorites.contains(path)) favorites.remove(path); else favorites.add(path);
+                  saveFavorites();
+                  toast(favorites.contains(path) ? "Adicionado aos favoritos." : "Removido dos favoritos.");
+                  reload();
+              }
+
+              private void renameFile(File file) {
+                  promptName("Novo nome", file.getName(), name -> {
+                      if (name.trim().isEmpty()) return;
+                      File target = new File(file.getParentFile(), name.trim());
+                      if (target.exists()) { toast("Já existe um item com esse nome."); return; }
+                      if (file.renameTo(target)) {
+                          String old = file.getAbsolutePath();
+                          if (favorites.remove(old)) favorites.add(target.getAbsolutePath());
+                          saveFavorites();
+                          toast("Item renomeado.");
+                          reload();
+                      } else toast("Não foi possível renomear este item.");
+                  });
+              }
+
+              private interface NameCallback { void onName(String name); }
+
+              private void promptName(String title, String initial, NameCallback callback) {
+                  EditText input = new EditText(this);
+                  input.setSingleLine(true);
+                  input.setText(initial);
+                  input.setSelectAllOnFocus(true);
+                  new AlertDialog.Builder(this).setTitle(title).setView(input)
+                      .setNegativeButton("Cancelar", null)
+                      .setPositiveButton("Salvar", (d, w) -> callback.onName(input.getText().toString()))
+                      .show();
+              }
+
+              private void showDetails(File f) {
+                  String type = f.isDirectory() ? "Pasta" : getExtension(f);
+                  String message = "Nome: " + f.getName() +
+                      "\\nTipo: " + type +
+                      "\\nTamanho: " + (f.isDirectory() ? "—" : formatSize(f.length())) +
+                      "\\nModificado: " + DateFormat.getDateTimeInstance().format(new Date(f.lastModified())) +
+                      "\\nCaminho: " + f.getAbsolutePath() +
+                      "\\n\\n" + (f.canRead() ? "Leitura disponível" : "Leitura restrita") +
+                      " • " + (f.canWrite() ? "Gravação disponível" : "Gravação restrita");
+                  new AlertDialog.Builder(this).setTitle("Detalhes do item")
+                      .setMessage(message).setPositiveButton("Fechar", null)
+                      .setNeutralButton("Copiar caminho", (d, w) -> {
+                          ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                          cm.setPrimaryClip(ClipData.newPlainText("Caminho", f.getAbsolutePath()));
+                          toast("Caminho copiado.");
+                      }).show();
+              }
+
+              private String getExtension(File f) {
+                  String n = f.getName();
+                  int dot = n.lastIndexOf('.');
+                  return dot < 0 ? "Arquivo" : n.substring(dot + 1).toUpperCase(Locale.ROOT);
+              }
+
+              private String mimeType(File f) {
+                  String ext = getExtension(f).toLowerCase(Locale.ROOT);
+                  String mime = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext);
+                  if (mime != null) return mime;
+                  if (ext.equals("apk")) return "application/vnd.android.package-archive";
+                  if (ext.equals("zip")) return "application/zip";
+                  return "*/*";
+              }
+
+              private void openFile(File file) {
+                  if (file.isDirectory()) { currentDir = file; reload(); return; }
+                  try {
+                      Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".provider", file);
+                      Intent intent = new Intent(Intent.ACTION_VIEW);
+                      intent.setDataAndType(uri, mimeType(file));
+                      intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                      startActivity(Intent.createChooser(intent, "Abrir arquivo"));
+                      rememberRecent(file);
+                  } catch (Exception e) {
+                      toast("Não há um aplicativo compatível para abrir este arquivo.");
+                  }
+              }
+
+              private void shareFiles(List<File> files) {
+                  try {
+                      ArrayList<Uri> uris = new ArrayList<>();
+                      for (File f : files) if (f.isFile()) {
+                          uris.add(FileProvider.getUriForFile(this, getPackageName() + ".provider", f));
+                      }
+                      if (uris.isEmpty()) { toast("Selecione arquivos para compartilhar."); return; }
+                      Intent intent = new Intent(Intent.ACTION_SEND_MULTIPLE);
+                      intent.setType("*/*");
+                      intent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+                      intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                      startActivity(Intent.createChooser(intent, "Compartilhar arquivos"));
+                  } catch (Exception e) { toast("Não foi possível compartilhar."); }
+              }
+
+              private void prepareClipboard(boolean move) {
+                  clipboardFiles.clear();
+                  clipboardFiles.addAll(selected);
+                  cutMode = move;
+                  selected.clear();
+                  updateSelectionBar();
+                  if (adapter != null) adapter.notifyDataSetChanged();
+                  toast(move ? "Itens preparados para mover. Navegue até a pasta e toque em Colar." :
+                      "Itens copiados. Navegue até a pasta e toque em Colar.");
+              }
+
+              private void pasteClipboard() {
+                  if (clipboardFiles.isEmpty()) { toast("Nada para colar."); return; }
+                  final ArrayList<File> sources = new ArrayList<>(clipboardFiles);
+                  final boolean move = cutMode;
+                  runTask(move ? "Movendo itens..." : "Copiando itens...", () -> {
+                      for (File source : sources) {
+                          try {
+                              if (currentDir == null || source.equals(currentDir) ||
+                                  currentDir.getAbsolutePath().startsWith(source.getAbsolutePath() + File.separator)) continue;
+                              File dest = uniqueDestination(new File(currentDir, source.getName()));
+                              if (move) {
+                                  if (!source.renameTo(dest)) {
+                                      copyRecursive(source, dest);
+                                      deleteRecursive(source);
+                                  }
+                              } else copyRecursive(source, dest);
+                          } catch (Exception ignored) {}
+                      }
+                      clipboardFiles.clear();
+                  });
+              }
+
+              private File uniqueDestination(File wanted) {
+                  if (!wanted.exists()) return wanted;
+                  String name = wanted.getName();
+                  String base = name;
+                  String ext = "";
+                  int dot = name.lastIndexOf('.');
+                  if (dot > 0 && !wanted.isDirectory()) {
+                      base = name.substring(0, dot);
+                      ext = name.substring(dot);
+                  }
+                  int i = 1;
+                  File candidate;
+                  do {
+                      candidate = new File(wanted.getParentFile(), base + " (" + i++ + ")" + ext);
+                  } while (candidate.exists() && i < 10000);
+                  return candidate;
+              }
+
+              private void copyRecursive(File src, File dst) throws Exception {
+                  if (src.isDirectory()) {
+                      if (!dst.exists() && !dst.mkdirs()) throw new Exception("mkdir");
+                      File[] children = src.listFiles();
+                      if (children != null) for (File child : children) {
+                          copyRecursive(child, new File(dst, child.getName()));
+                      }
+                  } else {
+                      File parent = dst.getParentFile();
+                      if (parent != null) parent.mkdirs();
+                      try (InputStream in = new BufferedInputStream(new FileInputStream(src));
+                           OutputStream out = new BufferedOutputStream(new FileOutputStream(dst))) {
+                          byte[] buffer = new byte[64 * 1024];
+                          int n;
+                          while ((n = in.read(buffer)) > 0) out.write(buffer, 0, n);
+                      }
+                  }
+              }
+
+              private boolean deleteRecursive(File file) {
+                  if (file.isDirectory()) {
+                      File[] children = file.listFiles();
+                      if (children != null) for (File c : children) deleteRecursive(c);
+                  }
+                  return file.delete();
+              }
+
+              private void deleteSelected() {
+                  if (selected.isEmpty()) return;
+                  confirmDelete(new ArrayList<>(selected));
+              }
+
+              private void confirmDelete(List<File> files) {
+                  new AlertDialog.Builder(this).setTitle("Apagar itens?")
+                      .setMessage("Os " + files.size() + " item(ns) selecionado(s) serão removidos. Esta ação não pode ser desfeita.")
+                      .setNegativeButton("Cancelar", null)
+                      .setPositiveButton("Apagar", (d, w) -> runTask("Apagando...", () -> {
+                          for (File f : files) deleteRecursive(f);
+                          selected.clear();
+                      })).show();
+              }
+
+              private void showCreateMenu(View anchor) {
+                  PopupMenu menu = new PopupMenu(this, anchor);
+                  menu.getMenu().add("Nova pasta").setOnMenuItemClickListener(i -> {
+                      promptName("Nome da nova pasta", "Nova pasta", name -> {
+                          File f = new File(currentDir, name.trim());
+                          if (name.trim().isEmpty()) return;
+                          if (f.exists()) toast("Já existe um item com esse nome.");
+                          else if (f.mkdir()) { toast("Pasta criada."); reload(); }
+                          else toast("Não foi possível criar a pasta.");
+                      }); return true;
+                  });
+                  menu.getMenu().add("Novo arquivo de texto").setOnMenuItemClickListener(i -> {
+                      promptName("Nome do arquivo", "novo-arquivo.txt", name -> {
+                          try {
+                              File f = new File(currentDir, name.trim());
+                              if (name.trim().isEmpty()) return;
+                              if (f.exists()) { toast("Esse nome já existe."); return; }
+                              if (f.createNewFile()) { toast("Arquivo criado."); reload(); }
+                          } catch (Exception e) { toast("Não foi possível criar o arquivo."); }
+                      }); return true;
+                  });
+                  menu.getMenu().add("Colar itens").setEnabled(!clipboardFiles.isEmpty())
+                      .setOnMenuItemClickListener(i -> { pasteClipboard(); return true; });
+                  menu.getMenu().add("Selecionar itens").setOnMenuItemClickListener(i -> {
+                      toast("Toque e segure um item para selecionar."); return true;
+                  });
+                  menu.show();
+              }
+
+              private void showMoreSelected() {
+                  if (selected.isEmpty()) return;
+                  String[] options = {"Compartilhar", "Compactar em ZIP", "Adicionar aos favoritos", "Ver detalhes"};
+                  new AlertDialog.Builder(this).setTitle("Ações dos itens")
+                      .setItems(options, (d, which) -> {
+                          ArrayList<File> files = new ArrayList<>(selected);
+                          if (which == 0) shareFiles(files);
+                          else if (which == 1) compressSelection();
+                          else if (which == 2) {
+                              for (File f : files) favorites.add(f.getAbsolutePath());
+                              saveFavorites(); toast("Favoritos atualizados.");
+                          } else if (which == 3 && files.size() == 1) showDetails(files.get(0));
+                      }).show();
+              }
+
+              private void compressSelection() {
+                  if (selected.isEmpty()) return;
+                  promptName("Nome do arquivo ZIP", "meus-arquivos.zip", name -> {
+                      String finalName = name.trim();
+                      if (finalName.isEmpty()) return;
+                      if (!finalName.toLowerCase(Locale.ROOT).endsWith(".zip")) finalName += ".zip";
+                      File output = new File(currentDir, finalName);
+                      if (output.exists()) { toast("Já existe um arquivo com esse nome."); return; }
+                      ArrayList<File> sources = new ArrayList<>(selected);
+                      selected.clear();
+                      updateSelectionBar();
+                      runTask("Compactando arquivos...", () -> {
+                          try (ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(output)))) {
+                              for (File f : sources) zipRec(f, "", zos);
+                          } catch (Exception e) {
+                              output.delete();
+                              throw new RuntimeException(e);
+                          }
+                      });
+                  });
+              }
+
+              private void zipRec(File file, String prefix, ZipOutputStream zos) throws Exception {
+                  String entryName = prefix.isEmpty() ? file.getName() : prefix + "/" + file.getName();
+                  if (file.isDirectory()) {
+                      if (!entryName.endsWith("/")) entryName += "/";
+                      zos.putNextEntry(new ZipEntry(entryName));
+                      zos.closeEntry();
+                      File[] children = file.listFiles();
+                      if (children != null) for (File child : children) zipRec(child, entryName.replaceAll("/$", ""), zos);
+                  } else {
+                      zos.putNextEntry(new ZipEntry(entryName));
+                      try (InputStream in = new BufferedInputStream(new FileInputStream(file))) {
+                          byte[] buffer = new byte[64 * 1024];
+                          int n;
+                          while ((n = in.read(buffer)) > 0) zos.write(buffer, 0, n);
+                      }
+                      zos.closeEntry();
+                  }
+              }
+
+              private void extractZip(File archive) {
+                  String name = archive.getName();
+                  if (name.toLowerCase(Locale.ROOT).endsWith(".zip")) name = name.substring(0, name.length() - 4);
+                  final File destination = new File(currentDir, name);
+                  if (destination.exists()) { toast("A pasta de destino já existe."); return; }
+                  runTask("Extraindo ZIP...", () -> {
+                      if (!destination.mkdirs()) throw new RuntimeException("Não foi possível criar a pasta.");
+                      String canonicalRoot = destination.getCanonicalPath() + File.separator;
+                      try (ZipInputStream zis = new ZipInputStream(new BufferedInputStream(new FileInputStream(archive)))) {
+                          ZipEntry entry;
+                          byte[] buffer = new byte[64 * 1024];
+                          while ((entry = zis.getNextEntry()) != null) {
+                              File out = new File(destination, entry.getName());
+                              String canonicalOut = out.getCanonicalPath();
+                              if (!canonicalOut.startsWith(canonicalRoot) && !canonicalOut.equals(destination.getCanonicalPath())) {
+                                  throw new SecurityException("Entrada ZIP inválida");
+                              }
+                              if (entry.isDirectory()) out.mkdirs();
+                              else {
+                                  File parent = out.getParentFile();
+                                  if (parent != null) parent.mkdirs();
+                                  try (OutputStream os = new BufferedOutputStream(new FileOutputStream(out))) {
+                                      int n;
+                                      while ((n = zis.read(buffer)) > 0) os.write(buffer, 0, n);
+                                  }
+                              }
+                              zis.closeEntry();
+                          }
+                      } catch (Exception e) {
+                          deleteRecursive(destination);
+                          throw new RuntimeException(e);
+                      }
+                  });
+              }
+
+              private void runTask(String message, Runnable task) {
+                  toast(message);
+                  worker.execute(() -> {
+                      boolean ok = true;
+                      try { task.run(); } catch (Exception e) { ok = false; }
+                      final boolean success = ok;
+                      runOnUiThread(() -> {
+                          toast(success ? "Concluído." : "Não foi possível concluir a operação.");
+                          selected.clear();
+                          updateSelectionBar();
+                          updateStorage();
+                          reload();
+                      });
+                  });
+              }
+
+              private void toast(String message) {
+                  Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+              }
+
+              @Override
+              protected void onDestroy() {
+                  super.onDestroy();
+                  worker.shutdown();
+              }
+          }
+          EOF
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Compilar APK
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Publicar APK para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOVA-Files-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
