@@ -19,7 +19,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          
 
       - name: Criar projeto Android
         shell: bash
@@ -467,8 +466,7 @@ jobs:
                   TextView up = label("‹", 28, C_PURPLE, true);
                   up.setGravity(Gravity.CENTER);
                   pathRow.addView(up, new LinearLayout.LayoutParams(dp(34), -1));
-                  up.setOnClickListener(v -> goUp());
-                  pathText = label("Armazenamento interno", 11, C_MUTED, true);
+                  up.setOnClickListener(v -> goUp());                  pathText = label("Armazenamento interno", 11, C_MUTED, true);
                   pathRow.addView(pathText, new LinearLayout.LayoutParams(0, -1, 1));
                   TextView refresh = label("↻", 22, C_PURPLE, true);
                   refresh.setGravity(Gravity.CENTER);
@@ -936,9 +934,7 @@ jobs:
                           row.addView(icon, ip);
                       } else {
                           row.addView(icon, new LinearLayout.LayoutParams(dp(48), -1));
-                      }
-
-                      LinearLayout info = vertical();
+                      }                      LinearLayout info = vertical();
                       info.setGravity(grid ? Gravity.CENTER : Gravity.CENTER_VERTICAL);
                       LinearLayout.LayoutParams infop = grid ?
                           new LinearLayout.LayoutParams(-1, 0, 1) :
@@ -1333,31 +1329,59 @@ jobs:
 
               private void extractZip(File archive) {
                   String name = archive.getName();
-                  if (name.toLowerCase(Locale.ROOT).endsWith(".zip")) name = name.substring(0, name.length() - 4);
+                  if (name.toLowerCase(Locale.ROOT).endsWith(".zip")) {
+                      name = name.substring(0, name.length() - 4);
+                  }
+
                   final File destination = new File(currentDir, name);
-                  if (destination.exists()) { toast("A pasta de destino já existe."); return; }
+                  if (destination.exists()) {
+                      toast("A pasta de destino já existe.");
+                      return;
+                  }
+
                   runTask("Extraindo ZIP...", () -> {
-                      if (!destination.mkdirs()) throw new RuntimeException("Não foi possível criar a pasta.");
-                      String canonicalRoot = destination.getCanonicalPath() + File.separator;
-                      try (ZipInputStream zis = new ZipInputStream(new BufferedInputStream(new FileInputStream(archive)))) {
-                          ZipEntry entry;
-                          byte[] buffer = new byte[64 * 1024];
-                          while ((entry = zis.getNextEntry()) != null) {
-                              File out = new File(destination, entry.getName());
-                              String canonicalOut = out.getCanonicalPath();
-                              if (!canonicalOut.startsWith(canonicalRoot) && !canonicalOut.equals(destination.getCanonicalPath())) {
-                                  throw new SecurityException("Entrada ZIP inválida");
-                              }
-                              if (entry.isDirectory()) out.mkdirs();
-                              else {
-                                  File parent = out.getParentFile();
-                                  if (parent != null) parent.mkdirs();
-                                  try (OutputStream os = new BufferedOutputStream(new FileOutputStream(out))) {
-                                      int n;
-                                      while ((n = zis.read(buffer)) > 0) os.write(buffer, 0, n);
+                      try {
+                          if (!destination.mkdirs()) {
+                              throw new java.io.IOException("Não foi possível criar a pasta.");
+                          }
+
+                          String canonicalDestination = destination.getCanonicalPath();
+                          String canonicalRoot = canonicalDestination + File.separator;
+
+                          try (ZipInputStream zis = new ZipInputStream(
+                                  new BufferedInputStream(new FileInputStream(archive)))) {
+                              ZipEntry entry;
+                              byte[] buffer = new byte[64 * 1024];
+
+                              while ((entry = zis.getNextEntry()) != null) {
+                                  File out = new File(destination, entry.getName());
+                                  String canonicalOut = out.getCanonicalPath();
+
+                                  if (!canonicalOut.startsWith(canonicalRoot)
+                                          && !canonicalOut.equals(canonicalDestination)) {
+                                      throw new SecurityException("Entrada ZIP inválida");
                                   }
+
+                                  if (entry.isDirectory()) {
+                                      if (!out.mkdirs() && !out.isDirectory()) {
+                                          throw new java.io.IOException("Não foi possível criar a pasta.");
+                                      }
+                                  } else {
+                                      File parent = out.getParentFile();
+                                      if (parent != null && !parent.mkdirs() && !parent.isDirectory()) {
+                                          throw new java.io.IOException("Não foi possível criar a pasta.");
+                                      }
+
+                                      try (OutputStream os = new BufferedOutputStream(new FileOutputStream(out))) {
+                                          int n;
+                                          while ((n = zis.read(buffer)) > 0) {
+                                              os.write(buffer, 0, n);
+                                          }
+                                      }
+                                  }
+
+                                  zis.closeEntry();
                               }
-                              zis.closeEntry();
                           }
                       } catch (Exception e) {
                           deleteRecursive(destination);
